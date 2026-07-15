@@ -18,27 +18,21 @@ This project is designed for researchers, wealth managers, and development offic
 ## 🛠️ The Architecture Pipeline
 
 To ensure maximum accuracy and minimize AI hallucinations, the system uses a strict pipeline workflow:
+
+```text
 [ User Input ] (Name + Context)
-│
-▼
-┌──────────────────────────┐
-│   1. Query Planner Agent │ ──► Generates 5-10 hyper-specific queries
-└──────────────────────────┘
-│
-▼
-┌──────────────────────────┐
-│   2. Web Search & Scrape │ ──► Fetches raw HTML & extracts body text
-└──────────────────────────┘
-│
-▼
-┌──────────────────────────┐
-│  3. Information Extractor│ ──► Isolates key facts, dates, and source URLs
-└──────────────────────────┘
-│
-▼
-┌──────────────────────────┐
-│   4. Synthesizer Agent   │ ──► Resolves conflicts & compiles the dossier
-└──────────────────────────┘
-│
-▼
-[ Final Profile Output ] 
+       │
+       ▼
+ 1. Query Planner Agent   ──► Generates 5-10 hyper-specific queries
+       │
+       ▼
+ 2. Web Search & Scrape   ──► Fetches raw HTML & extracts body text
+       │
+       ▼
+ 3. Information Extractor ──► Isolates key facts, dates, and source URLs
+       │
+       ▼
+ 4. Synthesizer Agent     ──► Resolves conflicts & compiles the dossier
+       │
+       ▼
+[ Final Profile Output ]  ──► Markdown with inline Citations
