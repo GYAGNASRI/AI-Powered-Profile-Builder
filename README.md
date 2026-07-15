@@ -1,38 +1,102 @@
-# AI Profile Research: Affluent Individual Profile Generator
+# AI Profile Generator
 
-An automated, multi-agent AI research pipeline that takes a name and basic context, dynamically plans targeted web searches, gathers public data, and synthesizes a highly detailed, fully cited dossier.
+An AI-powered app that generates a structured public profile of an individual from just a **name + context**, grounded in real public sources with references.
 
-This project is designed for researchers, wealth managers, and development officers who need compliant, accurate, and deeply researched background profiles without spending hours on manual search engines.
-
----
-
-## 🚀 Key Features
-
-*   **Autonomous Query Planning:** An LLM agent analyzes the target's name and context to generate a series of highly targeted, diverse search queries (e.g., philanthropic history, business associations, board memberships).
-*   **Intelligent Web Scraping:** Gathers and parses public records, news articles, and corporate filings from across the web.
-*   **Multi-Source Synthesis:** Merges conflicting or duplicate data points, resolves discrepancies, and structures the final output into a clean, readable profile.
-*   **100% Traceable Citations:** Every claim, net worth estimate, or bio detail in the generated profile is accompanied by an inline citation and direct link back to the source.
+Built on **TanStack Start** (React 19 + Vite) with **Lovable AI Gateway** (Google Gemini 3 Flash) and **Firecrawl** for public-web retrieval.
 
 ---
 
-## 🛠️ The Architecture Pipeline
+## Example
 
-To ensure maximum accuracy and minimize AI hallucinations, the system uses a strict pipeline workflow:
+**Input:** `Satya Nadella` / `CEO of Microsoft`
+**Output:** Executive summary, basic details, biography, career timeline, education, interests, estimated net worth, recent news, references, and a `Missing / Conflicts` section — see reference layout in `docs/sample.png`.
+
+---
+
+## Architecture — 4-Step Agentic Workflow
 
 ```text
-[ User Input ] (Name + Context)
-       │
-       ▼
- 1. Query Planner Agent   ──► Generates 5-10 hyper-specific queries
-       │
-       ▼
- 2. Web Search & Scrape   ──► Fetches raw HTML & extracts body text
-       │
-       ▼
- 3. Information Extractor ──► Isolates key facts, dates, and source URLs
-       │
-       ▼
- 4. Synthesizer Agent     ──► Resolves conflicts & compiles the dossier
-       │
-       ▼
-[ Final Profile Output ]  ──► Markdown with inline Citations
+ ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+ │  1. SEARCH   │──▶│  2. EXTRACT  │──▶│ 3. SYNTHESIZE│──▶│ 4. STRUCTURE │
+ │              │   │              │   │              │   │              │
+ │ Plan 6 web   │   │ LLM pulls    │   │ LLM writes   │   │ Curate refs, │
+ │ queries →    │   │ basic facts, │   │ bio, timeline│   │ merge, flag  │
+ │ Firecrawl →  │   │ flags gaps + │   │ education,   │   │ conflicts &  │
+ │ dedupe URLs  │   │ conflicts    │   │ news, etc.   │   │ gaps         │
+ └──────────────┘   └──────────────┘   └──────────────┘   └──────────────┘
+```
+
+All steps run inside a single TanStack **server function** (`src/lib/profile.functions.ts`) and stream a live status list back to the UI.
+
+**AI engineering approaches used**
+- **Agent orchestration** — planner → retriever → extractor → synthesizer → structurer
+- **Tool / function calling** — `firecrawlSearch` as a retrieval tool for the planner's queries
+- **Multi-step retrieval + extraction** — 6 parallel searches, URL dedupe, priority-domain ranking (Wikipedia, Forbes, Bloomberg, Reuters, LinkedIn, Britannica, NYT, FT, CNBC)
+- **Structured output** — Zod schemas + AI SDK `generateObject` (strict JSON)
+- **Conflict/gap handling** — LLM emits `missingFields` and `conflictingFields`; UI surfaces them explicitly instead of fabricating
+- **Robustness** — per-step try/catch, `NoObjectGeneratedError` fallback, gateway error surfacing, step-level logging
+
+---
+
+## Tech Stack
+
+| Layer     | Choice                                                   |
+|-----------|----------------------------------------------------------|
+| Framework | TanStack Start (React 19, Vite 7)                        |
+| AI Model  | `google/gemini-3-flash-preview` via Lovable AI Gateway   |
+| AI SDK    | Vercel AI SDK + `@ai-sdk/openai-compatible`              |
+| Retrieval | Firecrawl v2 (via Lovable connector gateway)             |
+| Schema    | Zod                                                      |
+| UI        | Tailwind v4 + shadcn/ui                                  |
+
+---
+
+## Setup
+
+Prerequisites: Bun (or Node 20+).
+
+```bash
+bun install
+bun dev
+```
+
+**Environment variables** (auto-provisioned in Lovable; set manually for local dev):
+
+| Variable            | Purpose                                          |
+|---------------------|--------------------------------------------------|
+| `LOVABLE_API_KEY`   | Auth for Lovable AI Gateway + connector gateway  |
+| `FIRECRAWL_API_KEY` | Firecrawl connection key (via Firecrawl connector) |
+
+Both are server-only and read inside server-function handlers — never exposed to the browser.
+
+---
+
+## File Map
+
+```
+src/
+├── routes/index.tsx              # Form + ProfileView + WorkflowProgress
+├── lib/
+│   ├── profile.functions.ts      # 4-step orchestrator (server function)
+│   ├── ai-gateway.server.ts      # Lovable AI Gateway provider (AI SDK)
+│   └── firecrawl.server.ts       # Firecrawl v2 client (gateway-backed)
+└── styles.css                    # Design tokens
+```
+
+---
+
+## How Missing / Conflicting Info Is Handled
+
+- Extractor is instructed to **never fabricate** — unknown string fields are set to `null`.
+- Every field it could not confidently determine is added to `missingFields`.
+- Any cross-source contradiction is described in `conflictingFields`.
+- The final profile exposes a `Missing / Conflicts` panel in the UI so the reader can see exactly what is unknown or disputed.
+
+---
+
+## Reproducibility
+
+1. Open the app
+2. Enter `Satya Nadella` / `CEO of Microsoft`
+3. Click **Generate Profile**
+4. Watch the 4-step workflow progress, then read the generated profile with clickable source links.
